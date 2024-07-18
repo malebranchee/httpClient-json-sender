@@ -73,8 +73,8 @@ public class CtprApi extends Thread
     // Проверка списка запросов
     public boolean ifRequestListNotFilled()
     {
-        long currentSeconds =
-        if (Instant.now().getEpochSecond())
+        //long currentSeconds =
+        //if (Instant.now().getEpochSecond())
         // Если список запросов не полный, то даем добро на новый запрос
         if (requestList.size() != requestLimit)
             return true;
