@@ -57,7 +57,7 @@ public class CtprApi extends Thread
         connManager.setDefaultMaxPerRoute(1);
         // .....................................................................................
 
-        this.httpPost = new HttpPost("http://localhost:8080/source");
+        this.httpPost = new HttpPost("https://ismp.crpt.ru/api/v3/lk/documents/create");
         this.client = HttpClients.custom()
                 .setConnectionManager(connManager)
                 .build();
@@ -149,11 +149,11 @@ public class CtprApi extends Thread
     @AllArgsConstructor
     public static class Product{
         private final String certificate_document = "string";
-        private final String certificate_document_date = "string";
+        private final String certificate_document_date = LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
         private final String certificate_document_number = "string";
         private final String owner_inn = "string";
         private final String producer_inn = "string";
-        private final String production_date = LocalDateTime.now().toString();
+        private final String production_date = LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
         private final String tnved_code = "string";
         private final String uit_code = "string";
         private final String uitu_code = "string";
@@ -173,7 +173,7 @@ public class CtprApi extends Thread
         private final String production_type = "string";
         private final ArrayList<Product> products = new ArrayList<>(2);
 
-        private final String reg_date = LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM));
+        private final String reg_date = LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
         private final String reg_number = "string";
 
     }
