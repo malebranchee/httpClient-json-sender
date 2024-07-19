@@ -1,11 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
-
 package com.mycompany.truemarkapi;
 
 import com.google.gson.Gson;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -17,8 +14,9 @@ import org.apache.http.util.EntityUtils;
 import java.io.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -28,32 +26,32 @@ import java.util.concurrent.TimeUnit;
 // Main default class
 public class CtprApi extends Thread
 {
-    private final TimeUnit timeUnit;
+    private final long secondsToRequest;
     private final int requestLimit;
     private HttpPost httpPost;
     private CloseableHttpClient client;
     private ArrayList<String> requestList;
-    private Long currentTime;
     private Long firstRequestTime;
 
+    @SneakyThrows
     @Override
     public void run()
     {
         connect();
+        sendRequest();
     }
 
     // @param TimeUnit timeUnit, int requestLimit
-    public CtprApi(TimeUnit timeUnit, int requestLimit) throws Exception
+    public CtprApi(long seconds, int requestLimit) throws Exception
     {
-        this.timeUnit = timeUnit;
+        this.secondsToRequest = seconds;
         this.requestLimit = requestLimit;
     }
 
     // Возможно убрать синхронизацию
     public synchronized void connect()
     {
-
-        // Возможно не нужно: это общее количество возможных соединений, а нам нужны запросы!
+        // Установка max количества соединений
         PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager();
         connManager.setMaxTotal(1);
         connManager.setDefaultMaxPerRoute(1);
@@ -71,48 +69,55 @@ public class CtprApi extends Thread
     // 5 second - > 5 times sendRequest()
 
     // Проверка списка запросов
+    @SneakyThrows
     public boolean ifRequestListNotFilled()
     {
-        //long currentSeconds =
-        //if (Instant.now().getEpochSecond())
+        // Если разница во времени между первым запросом и текущим больше или равно условию, то обновляем список запросов
+        long currentSeconds = Instant.now().getEpochSecond();
+        if (Math.abs(currentSeconds-firstRequestTime) >= secondsToRequest)
+            requestList.clear();
+
         // Если список запросов не полный, то даем добро на новый запрос
-        if (requestList.size() != requestLimit)
+        if (requestList.size() != requestLimit) {
             return true;
+        }
+        // Если размер списка запросов равен условию количества запросов,
+        // то засыпляем потом на разницу в секундах до конца периода и обновляем список запросов
+        else if (requestList.size() == requestLimit)
+        {
+
+            currentSeconds = Instant.now().getEpochSecond();
+            Thread.sleep(1000 * Math.abs(currentSeconds - firstRequestTime - secondsToRequest));
+            requestList.clear();
+            return true;
+        }
 
         return false;
     }
-
-    /* !!! Дописать:
-        - Таймер количества запросов
-        - Блокировку запроса до момента входа в request list
-       !!!  */
-
 
     // Отправка запроса
     public void sendRequest()
     {
         if (requestList.isEmpty())
         {
-            firstRequestTime = Instant.now().getEpochSecond();
+            firstRequestTime = Instant.now().getEpochSecond(); // Первый запрос: фиксируем время запроса
         }
 
         if (ifRequestListNotFilled())
         {
-            requestList.add("request");
+            requestList.add("request"); // Проверка условия и добавление в список запросов
         }
 
         try {
             // Создание объекта JSON документа и его сериализация
             Document document = new Document();
             Gson gson = new Gson();
-
             String jsonDoc = gson.toJson(document);
             //........................................................................
 
             // Создание тела запроса
             StringEntity entity = new StringEntity(jsonDoc);
             httpPost.setEntity(entity);
-
 
             try {
                 // отправка запроса и получение ответа
@@ -133,12 +138,8 @@ public class CtprApi extends Thread
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-
-
-    // ---------------------------------------------------------------------------
-
-
 }
+    // ============================================================================
     // POJO-data классы документа
     @AllArgsConstructor
     public static class Description{
@@ -171,7 +172,8 @@ public class CtprApi extends Thread
         private final String production_date = LocalDateTime.now().toString();
         private final String production_type = "string";
         private final ArrayList<Product> products = new ArrayList<>(2);
-        private final String reg_date = LocalDateTime.now().toString();
+
+        private final String reg_date = LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM));
         private final String reg_number = "string";
 
     }
@@ -180,9 +182,7 @@ public class CtprApi extends Thread
     // Точка входа
    public static void main(String[] args) throws Exception
    {
-        TimeUnit unit = TimeUnit.SECONDS;
-        CtprApi api = new CtprApi(unit, 5);
-        api.connect();
-        api.sendRequest();
+        CtprApi api = new CtprApi(5, 2);
+        api.start();
    }
 }
